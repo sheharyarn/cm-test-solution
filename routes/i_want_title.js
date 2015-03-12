@@ -1,6 +1,6 @@
-var http    = require('http');
 var express = require('express');
 var request = require('request');
+var async   = require('async');
 var router  = express.Router();
 
 var titleRegex = new RegExp("<title>(.*?)</title>", "i");
@@ -22,19 +22,34 @@ router.get('/', function(req, res) {
             addresses = [req.query.address];
         }
 
-        // 'Try' to get titles of these addresses
-        for (var i=0; i < addresses.length; i++) {
-            getPageTitle(addresses[i]);
-        }
+
+        // ## Use one at a time, either series or parallel
+
+        // // Use 'async' to pull titles in parallel
+        // async.map(addresses, getPageTitle, asyncCallback);
         
+        // Use 'async' to pull titles in series
+        async.mapSeries(addresses, getPageTitle, asyncCallback);
+
+        // ## 
+
     } else {
         serveWebpage(null);
     }
-
 });
 
+// 'async' needs a callback function
+function asyncCallback(err, results) {
+    if (err) {
+        console.log("There was an error with Async: " + err);
+    }
 
-function getPageTitle(ourl) {
+    // No need to use 'results', already being handled in 'getPageTitle' method
+}
+
+function getPageTitle(ourl, urlCallback) {
+    console.log("Trying: " + ourl);
+
     // Prepend 'http://' if it isn't already there
     var url = ourl;
     if (!url.match(/^[a-zA-Z]+:\/\//)) {
@@ -56,6 +71,10 @@ function getPageTitle(ourl) {
         } else {
             callback(ourl, 'Could not find Title Tag');
         }
+
+        // Finish and callback to 'async'
+        console.log('Finished: ' + ourl);
+        urlCallback(null);
     });
 
 }
