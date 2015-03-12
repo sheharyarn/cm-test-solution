@@ -1,0 +1,15 @@
+extends layout
+block content
+
+    - if (sites && sites.length != 0)
+        h1 Following are the titles of given websites:
+
+        ul
+            - each title, site in sites
+                li
+                    strong= site
+                    = " - " + title
+
+    - else
+        h1 No websites provided
+
