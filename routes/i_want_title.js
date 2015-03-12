@@ -14,17 +14,23 @@ router.get('/', function(req, res) {
     sites     = {};
     gres      = res;
 
-    // Populate 'addresses' depending on the number of address queries
-    if (req.query.address instanceof Array) {
-        addresses = req.query.address;
+    if (req.query.address) {
+        // Populate 'addresses' depending on the number of address queries
+        if (req.query.address instanceof Array) {
+            addresses = req.query.address;
+        } else {
+            addresses = [req.query.address];
+        }
+
+        // 'Try' to get titles of these addresses
+        for (var i=0; i < addresses.length; i++) {
+            getPageTitle(addresses[i]);
+        }
+        
     } else {
-        addresses = [req.query.address];
+        res.render('i_want_title', { sites: null, title: 'I Want Title!' });
     }
 
-    // 'Try' to get titles of these addresses
-    for (var i=0; i < addresses.length; i++) {
-        getPageTitle(addresses[i]);
-    }
 });
 
 
