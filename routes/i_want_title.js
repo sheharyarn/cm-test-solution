@@ -28,7 +28,7 @@ router.get('/', function(req, res) {
         }
         
     } else {
-        res.render('i_want_title', { sites: null, title: 'I Want Title!' });
+        serveWebpage(null);
     }
 
 });
@@ -67,11 +67,17 @@ function callback(url, siteTitle) {
 
     // Finally serve webpage when all addresses have been dealt with
     if (counter == addresses.length) {
-        gres.render('i_want_title', {
-            sites: sites,
-            title: 'I Want Title!' 
-        });
+        serveWebpage(sites);
     }
+}
+
+
+// Function to serve the webpage
+function serveWebpage(sitesObject) {
+    gres.render('i_want_title', {
+        sites: sitesObject,
+        title: 'I Want Title!' 
+    });
 }
 
 
