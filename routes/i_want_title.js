@@ -61,6 +61,7 @@ function getPageTitle(ourl, urlCallback) {
         if (err) {
             console.log(err);
             callback(ourl, 'Error Requesting Website')
+            urlCallback(null);
             return;
         }
 
