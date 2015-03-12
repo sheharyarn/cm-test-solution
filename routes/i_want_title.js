@@ -1,6 +1,6 @@
 var express = require('express');
 var request = require('request');
-var async   = require('async');
+var rsvp    = require('rsvp');
 var router  = express.Router();
 
 var titleRegex = new RegExp("<title>(.*?)</title>", "i");
@@ -22,62 +22,66 @@ router.get('/', function(req, res) {
             addresses = [req.query.address];
         }
 
-
-        // ## Use one at a time, either series or parallel
-
-        // // Use 'async' to pull titles in parallel
-        // async.map(addresses, getPageTitle, asyncCallback);
-        
-        // Use 'async' to pull titles in series
-        async.mapSeries(addresses, getPageTitle, asyncCallback);
-
-        // ## 
+        // Make promises to pull titles of each address
+        for (var i=0; i < addresses.length; i++) {
+            getPageTitle(addresses[i]).then(
+                // Promise Kept
+                function(kept) {
+                    var url  = kept[0];
+                    var resp = kept[1];
+                    callback(url, resp);
+                },
+                // Promise Broken
+                function(broken) {
+                    var url    = broken[0];
+                    var reason = broken[1];
+                    callback(url, reason);
+                }
+            );
+        }
 
     } else {
         serveWebpage(null);
     }
 });
 
-// 'async' needs a callback function
-function asyncCallback(err, results) {
-    if (err) {
-        console.log("There was an error with Async: " + err);
-    }
 
-    // No need to use 'results', already being handled in 'getPageTitle' method
-}
-
+// The Promise to pull titles
 function getPageTitle(ourl, urlCallback) {
-    console.log("Trying: " + ourl);
-
     // Prepend 'http://' if it isn't already there
     var url = ourl;
     if (!url.match(/^[a-zA-Z]+:\/\//)) {
         url = 'http://' + url;
     }
 
-    // Make the request
-    request(url, function(err, response, body) {
-        if (err) {
-            console.log(err);
-            callback(ourl, 'Error Requesting Website')
-            return;
-        }
+    var promise = new rsvp.Promise(function(resolve, reject) {
+        console.log("Trying: " + ourl);
 
-        // Find the title tag using regex
-        var match = titleRegex.exec(body);
-        if (match && match[1]) {
-            callback(ourl, '"' + match[1] + '"');
-        } else {
-            callback(ourl, 'Could not find Title Tag');
-        }
+        // Make the request
+        request(url, function(err, response, body) {
+            if (err) {
+                // Reject the promise on error
+                console.log(err);
+                reject([ourl, 'Error Requesting Website']);
+                return;
+            }
 
-        // Finish and callback to 'async'
-        console.log('Finished: ' + ourl);
-        urlCallback(null);
+            // Find the title tag using regex, and resolve the promise
+            var match = titleRegex.exec(body);
+            if (match && match[1]) {
+                resolve([ourl, '"' + match[1] + '"']);
+            } else {
+                // reject the promise if doc doesn't contain the title tag
+                reject([ourl, 'Could not find Title Tag']);
+            }
+
+            console.log('Finished: ' + ourl);
+        });
     });
 
+    return promise;
 }
+
 
 // Callback function to update the 'sites' object
 function callback(url, siteTitle) {
