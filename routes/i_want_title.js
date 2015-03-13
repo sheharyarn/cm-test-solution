@@ -1,6 +1,6 @@
-var http    = require('http');
 var express = require('express');
 var request = require('request');
+var bacon   = require('baconjs').Bacon;
 var router  = express.Router();
 
 var titleRegex = new RegExp("<title>(.*?)</title>", "i");
@@ -22,19 +22,29 @@ router.get('/', function(req, res) {
             addresses = [req.query.address];
         }
 
-        // 'Try' to get titles of these addresses
+        // Use 'Bacon' to get titles of these addresses
         for (var i=0; i < addresses.length; i++) {
-            getPageTitle(addresses[i]);
+            var getTitle = bacon.fromNodeCallback(getPageTitle, addresses[i]);
+            var site = addresses[i];
+
+            getTitle.onError(function(error) {
+                finalCallback(error);
+                console.log("Reading failed: " + error);
+            });
+            getTitle.onValue(function(value) {
+                finalCallback(value);
+                console.log("Read contents: " + value); 
+            });
         }
         
     } else {
         serveWebpage(null);
     }
-
 });
 
 
-function getPageTitle(ourl) {
+// The Bacon Function
+function getPageTitle(ourl, baconCallback) {
     // Prepend 'http://' if it isn't already there
     var url = ourl;
     if (!url.match(/^[a-zA-Z]+:\/\//)) {
@@ -45,24 +55,28 @@ function getPageTitle(ourl) {
     request(url, function(err, response, body) {
         if (err) {
             console.log(err);
-            callback(ourl, 'Error Requesting Website')
+            baconCallback([ourl, 'Error Requesting Website'], null);
             return;
         }
 
         // Find the title tag using regex
         var match = titleRegex.exec(body);
         if (match && match[1]) {
-            callback(ourl, '"' + match[1] + '"');
+            baconCallback(null, [ourl, '"' + match[1] + '"']);
         } else {
-            callback(ourl, 'Could not find Title Tag');
+            baconCallback([ourl, 'Could not find Title Tag'], null);
         }
     });
 
 }
 
+
 // Callback function to update the 'sites' object
-function callback(url, siteTitle) {
-    sites[url] = siteTitle;
+function finalCallback(array) {
+    url = array[0];
+    msg = array[1];
+
+    sites[url] = msg;
     counter++;
 
     // Finally serve webpage when all addresses have been dealt with
